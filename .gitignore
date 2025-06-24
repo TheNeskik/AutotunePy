@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# VSCode
+.vscode/
+
+# Data/Model files
+*.csv
+*.pkl
+*.cbm
+*.json
+*.tsv
+*.ini
+
+# Plots/Images
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# CatBoost temp
+catboost_info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.venv/
+venv/
+ENV/
+
+# Others
+*.bak
+*.old
