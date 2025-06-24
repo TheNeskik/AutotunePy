@@ -1,3 +1,16 @@
+# DEPRECATED: Ce module n'est plus utilisé dans le pipeline principal. Gardé pour référence et recherche uniquement.
+# DEPRECATED: This module is no longer used in the main pipeline. Kept for reference and research purposes only.
+#
+# Utilisation typique :
+# X, y_basal, y_isf, y_csf = load_features_from_csv('features_debug.csv', days=nb_jours)
+# model = train_rnn_model(X, y_basal, y_isf, y_csf)
+# y_pred = predict_with_rnn(model, X)
+#
+# Typical usage:
+# X, y_basal, y_isf, y_csf = load_features_from_csv('features_debug.csv', days=nb_days)
+# model = train_rnn_model(X, y_basal, y_isf, y_csf)
+# y_pred = predict_with_rnn(model, X)
+
 import numpy as np
 import pandas as pd
 from tensorflow.keras.models import Model

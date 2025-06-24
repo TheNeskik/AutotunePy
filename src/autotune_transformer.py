@@ -1,3 +1,16 @@
+# DEPRECATED: Ce module n'est plus utilisé dans le pipeline principal. Gardé pour référence et recherche uniquement.
+# DEPRECATED: This module is no longer used in the main pipeline. Kept for reference and research purposes only.
+#
+# Utilisation typique :
+# X, y_basal, y_isf, y_csf = load_features_from_csv('features_debug.csv', days=nb_jours)
+# model = train_transformer_model(X, y_basal, y_isf, y_csf)
+# y_pred = predict_with_transformer(model, X)
+#
+# Typical usage:
+# X, y_basal, y_isf, y_csf = load_features_from_csv('features_debug.csv', days=nb_days)
+# model = train_transformer_model(X, y_basal, y_isf, y_csf)
+# y_pred = predict_with_transformer(model, X)
+
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -128,8 +141,3 @@ def format_transformer_output(y_basal_pred, y_isf_pred, y_csf_pred):
     for h in range(24):
         result.append(f"{h:02d}h  Basal: {basal_24h[h]:.2f}  ISF: {isf_24h[h]:d}  CSF: {csf_24h[h]:d}")
     return "<br>".join(result)
-
-# Utilisation typique :
-# X, y_basal, y_isf, y_csf = load_features_from_csv('features_debug.csv', days=nb_jours)
-# model = train_transformer_model(X, y_basal, y_isf, y_csf)
-# y_pred = predict_with_transformer(model, X)

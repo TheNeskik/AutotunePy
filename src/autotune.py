@@ -1,3 +1,16 @@
+# DEPRECATED: Ce module n'est plus utilisé dans le pipeline principal. Gardé pour référence et recherche uniquement.
+# DEPRECATED: This module is no longer used in the main pipeline. Kept for reference and research purposes only.
+# ATTENTION : Les résultats de ce script sont différents de ceux du vrai Autotune (OpenAPS/oref0).
+# WARNING: The results of this script differ from the real Autotune (OpenAPS/oref0).
+#
+# Utilisation typique :
+# from autotune import run_autotune
+# result = run_autotune(data)
+#
+# Typical usage:
+# from autotune import run_autotune
+# result = run_autotune(data)
+
 from datetime import datetime
 from datetime import timedelta
 from collections import defaultdict

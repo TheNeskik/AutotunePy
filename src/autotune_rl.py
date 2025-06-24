@@ -1,3 +1,24 @@
+# DEPRECATED: Ce module n'est plus utilisé dans le pipeline principal. Gardé pour référence et recherche uniquement.
+# DEPRECATED: This module is no longer used in the main pipeline. Kept for reference and research purposes only.
+#
+# Conseils sur le nombre de jours optimal :
+# - Pour la stabilité, 14 à 30 jours est un bon compromis (assez de données, pas trop vieux)
+# - Si le patient a changé de schéma récemment, privilégier 7 à 14 jours
+# - Pour un profil très robuste, 30 jours (si pas de changement majeur)
+# - Pour tester la réactivité, 7 jours
+#
+# Tips for optimal number of days:
+# - For stability, 14 to 30 days is a good compromise (enough data, not too old)
+# - If the patient recently changed their regimen, prefer 7 to 14 days
+# - For a very robust profile, use 30 days (if no major change)
+# - To test reactivity, use 7 days
+#
+# Utilisation / Usage:
+# transitions = build_rl_dataset('features_debug.csv', days=7)
+# Q = fitted_q_iteration(transitions, use_gpu=True)
+# Pour prédire la meilleure action pour un état : Q.predict(np.concatenate([state, action]).reshape(1, -1))
+# To predict the best action for a state: Q.predict(np.concatenate([state, action]).reshape(1, -1))
+
 import pandas as pd
 import numpy as np
 from collections import namedtuple
@@ -219,14 +240,3 @@ def pipeline_optimal_profile(csv_path, days=14, output_csv="profil_optimal_par_h
     print(f"[PIPELINE] Extraction du profil optimal par heure...")
     export_optimal_profile_by_hour(csv_path, days=days, output_csv=output_csv)
     print(f"[PIPELINE] Terminé. Profil exporté dans {output_csv}")
-
-# Conseils sur le nombre de jours optimal :
-# - Pour la stabilité, 14 à 30 jours est un bon compromis (assez de données, pas trop vieux)
-# - Si le patient a changé de schéma récemment, privilégier 7 à 14 jours
-# - Pour un profil très robuste, 30 jours (si pas de changement majeur)
-# - Pour tester la réactivité, 7 jours
-
-# Utilisation :
-# transitions = build_rl_dataset('features_debug.csv', days=7)
-# Q = fitted_q_iteration(transitions, use_gpu=True)
-# Pour prédire la meilleure action pour un état : Q.predict(np.concatenate([state, action]).reshape(1, -1))

@@ -197,20 +197,24 @@ def summarize_top_profiles(results, top_k=5):
     print("\n📋 Résumé des profils optimaux :")
     print(df_summary.to_markdown(index=False))
 
-def export_hourly_profiles(results, top_k=3, save_csv=True):
+def export_hourly_profiles(results, top_k=3, save_csv=True, outputs_dir=None):
     """
-    Exporte les profils top_k heure par heure en CSV.
+    Exporte les profils top_k heure par heure en CSV, arrondi à 2 décimales, dans outputs_dir.
     """
+    if outputs_dir is None:
+        outputs_dir = os.path.join(os.path.dirname(__file__), '../outputs')
+    os.makedirs(outputs_dir, exist_ok=True)
     for i, r in enumerate(results[:top_k]):
         p = r["profile"]
         df = pd.DataFrame({
             "Heure": [f"{h:02d}h" for h in range(24)],
-            "Basal": p["basal"],
-            "ISF": p["isf"],
-            "CSF": p["csf"]
+            "Basal": [round(x, 2) for x in p["basal"]],
+            "ISF": [round(x, 2) for x in p["isf"]],
+            "CSF": [round(x, 2) for x in p["csf"]]
         })
         if save_csv:
-            df.to_csv(f"profile_{i+1}_hourly.csv", index=False)
+            out_csv = os.path.join(outputs_dir, f"profile_{i+1}_hourly.csv")
+            df.to_csv(out_csv, index=False)
 
 
 def smooth_profile(profile, sigma=3):
@@ -271,10 +275,13 @@ def load_profile_from_ini(path):
     return profile
 
 
-def plot_mutant_vs_baseline(results, baseline_profile, top_k=3):
+def plot_mutant_vs_baseline(results, baseline_profile, top_k=3, plots_dir=None):
     """
-    Affiche et sauvegarde la comparaison entre profils mutants et baseline.
+    Affiche et sauvegarde la comparaison entre profils mutants et baseline dans plots_dir.
     """
+    if plots_dir is None:
+        plots_dir = os.path.join(os.path.dirname(__file__), '../plots')
+    os.makedirs(plots_dir, exist_ok=True)
     heures = np.arange(24)
     for i, r in enumerate(results[:top_k]):
         mutant = r["profile"]
@@ -301,25 +308,9 @@ def plot_mutant_vs_baseline(results, baseline_profile, top_k=3):
         plt.xlabel("Heure")
         plt.grid(True)
 
-        plt.suptitle(f"🧬 Comparaison Profil Mutant #{i+1} — Score {r['score']:.2f}")
+        plt.suptitle(f"Comparaison Profil Mutant #{i+1} — Score {r['score']:.2f}")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"profile_mutant_{i+1}_vs_baseline.png")
+        out_img = os.path.join(plots_dir, f"profile_mutant_{i+1}_vs_baseline.png")
+        plt.savefig(out_img)
         plt.close()
-
-# 8. Entrée point
-
-if __name__ == "__main__":
-    data_dir = os.path.join(os.path.dirname(__file__), '../data')
-    models_dir = os.path.join(os.path.dirname(__file__), '../models')
-    outputs_dir = os.path.join(os.path.dirname(__file__), '../outputs')
-    plots_dir = os.path.join(os.path.dirname(__file__), '../plots')
-
-    X, y, df, feature_cols = prepare_data(os.path.join(data_dir, 'features_debug.csv'))
-    baseline_profile = load_profile_from_ini(os.path.join(data_dir, "profil_base.ini"))
-    model = train_catboost_multioutput(X, y, save_path=os.path.join(models_dir, 'model_catboost_multi.cbm'))
-    results = optimize_profiles(model, df, feature_cols, baseline_profile, n_profiles=100)
-    summarize_top_profiles(results, top_k=3)
-    export_hourly_profiles(results, top_k=3, save_csv=True)
-    plot_mutant_vs_baseline(results, baseline_profile, top_k=3)
-
