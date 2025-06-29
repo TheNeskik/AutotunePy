@@ -314,3 +314,75 @@ def plot_mutant_vs_baseline(results, baseline_profile, top_k=3, plots_dir=None):
         out_img = os.path.join(plots_dir, f"profile_mutant_{i+1}_vs_baseline.png")
         plt.savefig(out_img)
         plt.close()
+
+def find_optimal_folds(X, y, max_splits=15):
+    """
+    Trouve le nombre optimal de folds pour TimeSeriesSplit
+    en minimisant la variance du MAE tout en gardant une bonne performance.
+    """
+    best_splits = None
+    best_mae = float('inf')
+    best_variance = float('inf')
+
+    print("🔍 Recherche du nombre optimal de folds...")
+    for n_splits in range(3, max_splits + 1, 2):  # On teste des valeurs impaires
+        tscv = TimeSeriesSplit(n_splits=n_splits)
+        maes = []
+
+        for train_idx, test_idx in tscv.split(X):
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+            model = CatBoostRegressor(loss_function='MultiRMSE', verbose=0)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            mae = np.mean(np.abs(y_pred - y_test.values), axis=0)[0]  # MAE sur t+30
+            maes.append(mae)
+
+        avg_mae = np.mean(maes)
+        variance_mae = np.std(maes)
+
+        print(f"Folds={n_splits} → MAE={avg_mae:.2f}, Variance={variance_mae:.2f}")
+
+        if variance_mae < best_variance and avg_mae <= best_mae:
+            best_splits = n_splits
+            best_mae = avg_mae
+            best_variance = variance_mae
+
+    print(f"\n✅ Nombre optimal de folds : {best_splits} (MAE={best_mae:.2f}, Variance={best_variance:.2f})")
+    return best_splits
+
+
+def update_model_from_new_data_only(new_csv_path,
+                                    model_path="model_catboost_multi.cbm",
+                                    baseline_ini="profil_testé.ini",
+                                    n_profiles=100, top_k=3):
+    """
+    Entraîne un nouveau modèle uniquement sur les nouvelles données,
+    puis optimise autour du profil testé.
+    """
+    print("📥 Chargement des nouvelles données...")
+    X, y, df, feature_cols = prepare_data(new_csv_path, dropna=True, filter_perturbations=False)
+
+    print("📈 Recherche du nombre optimal de folds...")
+    optimal_folds = find_optimal_folds(X, y, max_splits=15)
+
+    print("🧠 Entraînement du modèle sur les nouvelles données...")
+    model = train_catboost_multioutput(X, y, n_splits=optimal_folds, save_path=model_path)
+
+    print("📊 Chargement du profil testé...")
+    baseline_profile = load_profile_from_ini(baseline_ini)
+
+    print("🔁 Optimisation autour du profil testé...")
+    results = optimize_profiles(model, df, feature_cols, baseline_profile, n_profiles=n_profiles)
+
+    print("📋 Résumé des meilleurs profils :")
+    summarize_top_profiles(results, top_k=top_k)
+    export_hourly_profiles(results, top_k=top_k)
+    plot_mutant_vs_baseline(results, baseline_profile, top_k=top_k)
+
+    print("✅ Pipeline terminé avec les nouvelles données uniquement.")
+    return results
+
+

@@ -12,7 +12,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt
 from debug_features_export import generate_features_csv
 from glycemia_profile_optimizer import (
     prepare_data, load_profile_from_ini, train_catboost_multioutput,
-    optimize_profiles, summarize_top_profiles, export_hourly_profiles, plot_mutant_vs_baseline
+    optimize_profiles, summarize_top_profiles, export_hourly_profiles, plot_mutant_vs_baseline, update_model_from_new_data_only
 )
 from PyQt5.QtGui import QPixmap
 import io
@@ -73,6 +73,42 @@ class GlycemiaProfileOptimizerWorker(QThread):
             tb = traceback.format_exc()
             self.result_ready.emit(f"Erreur lors de l'optimisation : {e}\n{tb}")
 
+class UpdateModelFromNewDataWorker(QThread):
+    status_update = pyqtSignal(str)
+    result_ready = pyqtSignal(str)
+
+    def run(self):
+        try:
+            self.status_update.emit("Mise à jour du modèle à partir des nouvelles données...")
+            data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data'))
+            models_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models'))
+            outputs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../outputs'))
+            plots_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../plots'))
+            csv_path = os.path.join(data_dir, 'features_debug.csv')
+            ini_path = os.path.join(data_dir, 'profil_base.ini')
+            model_path = os.path.join(models_dir, 'model_catboost_multi.cbm')
+            if not os.path.exists(csv_path):
+                self.result_ready.emit("Le fichier features_debug.csv est introuvable. Veuillez d'abord générer les données.")
+                return
+            if not os.path.exists(ini_path):
+                self.result_ready.emit("Le fichier profil_base.ini est introuvable. Veuillez d'abord créer/éditer le profil basal.")
+                return
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                results = update_model_from_new_data_only(
+                    new_csv_path=csv_path,
+                    model_path=model_path,
+                    baseline_ini=ini_path,
+                    n_profiles=100,
+                    top_k=3
+                )
+            logs = buf.getvalue()
+            self.result_ready.emit(logs + "\nMise à jour du modèle terminée. Profils et graphiques générés dans outputs/ et plots/.")
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            self.result_ready.emit(f"Erreur lors de la mise à jour du modèle : {e}\n{tb}")
+
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -96,6 +132,7 @@ class MainWindow(QWidget):
         self.csv_button = QPushButton("Fetch Data (CSV)")
         self.optimizer_button = QPushButton("Lancer Glycemia Profile Optimizer")
         self.edit_profile_button = QPushButton("Éditer profil basal")
+        self.update_model_button = QPushButton("Mettre à jour modèle (nouvelles données)")
         self.profile_selector = QComboBox()
         self.profile_selector.addItems(["Afficher profil 1", "Afficher profil 2", "Afficher profil 3"])
         self.profile_selector.setEnabled(True)
@@ -124,6 +161,7 @@ class MainWindow(QWidget):
         button_layout.addWidget(self.edit_profile_button)
         button_layout.addWidget(self.optimizer_button)
         button_layout.addWidget(self.profile_selector)
+        button_layout.addWidget(self.update_model_button)
         main_layout = QVBoxLayout()
         main_layout.addLayout(url_layout)
         main_layout.addLayout(token_layout)
@@ -137,6 +175,7 @@ class MainWindow(QWidget):
         self.csv_button.clicked.connect(self.run_generate_csv)
         self.optimizer_button.clicked.connect(self.run_optimizer)
         self.edit_profile_button.clicked.connect(self.open_profile_ini)
+        self.update_model_button.clicked.connect(self.run_update_model_from_new_data)
         self.update_optimizer_button()
 
     def save_env(self):
@@ -192,6 +231,25 @@ class MainWindow(QWidget):
         self.worker.finished.connect(self.on_optimizer_finished)
         self.worker.start()
 
+    def run_update_model_from_new_data(self):
+        outputs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../outputs'))
+        if not os.path.exists(outputs_dir):
+            try:
+                os.makedirs(outputs_dir)
+            except Exception as e:
+                self.result_box.setText(f"Erreur lors de la création du dossier outputs : {e}")
+                return
+        self.result_box.setHtml('<div style="text-align:center;">⏳<br>Mise à jour du modèle en cours...</div>')
+        self.result_box.setVisible(True)
+        self.csv_button.setEnabled(False)
+        self.optimizer_button.setEnabled(False)
+        self.update_model_button.setEnabled(False)
+        self.worker = UpdateModelFromNewDataWorker()
+        self.worker.status_update.connect(self.result_box.setText)
+        self.worker.result_ready.connect(self.display_result)
+        self.worker.finished.connect(self.on_update_model_finished)
+        self.worker.start()
+
     def on_csv_finished(self):
         self.csv_button.setEnabled(True)
         self.update_optimizer_button()
@@ -199,6 +257,11 @@ class MainWindow(QWidget):
     def on_optimizer_finished(self):
         self.csv_button.setEnabled(True)
         self.update_optimizer_button()
+
+    def on_update_model_finished(self):
+        self.csv_button.setEnabled(True)
+        self.update_optimizer_button()
+        self.update_update_model_button()
 
     def update_optimizer_button(self):
         # Active le bouton optimizer seulement si le CSV existe dans le bon dossier
@@ -208,6 +271,14 @@ class MainWindow(QWidget):
             self.optimizer_button.setEnabled(True)
         else:
             self.optimizer_button.setEnabled(False)
+
+    def update_update_model_button(self):
+        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data'))
+        csv_path = os.path.join(data_dir, 'features_debug.csv')
+        if os.path.exists(csv_path):
+            self.update_model_button.setEnabled(True)
+        else:
+            self.update_model_button.setEnabled(False)
 
     def display_result(self, result):
         self.result_box.setText(result)
